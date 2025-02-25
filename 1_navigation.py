@@ -71,15 +71,15 @@ def dijkstra(graph, start_id, end_id):
 
 def visualize_graph(graph, path=None, start_id=None, end_id=None):
     """可视化图结构和最短路径，标出起点和终点"""
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(20, 20))
 
     # 绘制图的边
     for edge in graph["edges"]:
         start_node = graph["nodes"][edge[0]]
         end_node = graph["nodes"][edge[1]]
         plt.plot([start_node["x"], end_node["x"]],
-                [start_node["y"], end_node["y"]],
-                'k--', alpha=0.5, linewidth=1, label='Graph Edges' if edge == graph["edges"][0] else "")
+                 [start_node["y"], end_node["y"]],
+                 'k--', alpha=0.5, linewidth=1, label='Graph Edges' if edge == graph["edges"][0] else "")
 
     # 绘制最短路径
     if path:
@@ -110,33 +110,70 @@ def visualize_graph(graph, path=None, start_id=None, end_id=None):
     plt.grid(True)
     plt.show()
 
+def get_node_id_from_graph(graph, traj_num, point_num):
+    """从图中根据轨迹编号和点序号获取节点ID"""
+    traj_idx = traj_num - 1  # 用户输入从1开始，内部索引从0开始
+    point_idx = point_num - 1  # 点序号从1开始，内部从0开始
+
+    # 筛选属于指定轨迹的节点
+    traj_nodes = [
+        (node_id, node["x"], node["y"])
+        for node_id, node in graph["nodes"].items()
+        if traj_idx in node["traj_indices"]
+    ]
+
+    if not traj_nodes:
+        print(f"错误：图中未找到属于轨迹 {traj_num} 的节点")
+        return None
+
+    # 按 x 和 y 坐标排序，假设轨迹点大致按顺序排列
+    # 注意：这可能不完全准确，取决于轨迹的实际顺序
+    traj_nodes.sort(key=lambda x: (x[1], x[2]))  # 先按 x 排序，再按 y 排序
+
+    if point_idx < 0 or point_idx >= len(traj_nodes):
+        print(f"错误：轨迹 {traj_num} 的点序号 {point_num} 超出范围（1-{len(traj_nodes)}）")
+        return None
+
+    node_id = traj_nodes[point_idx][0]
+    return node_id
+
 def main():
+    # 加载图
     graph = load_graph("graph.json")
     if not graph:
         return
 
-    # 假设从轨迹1起点到轨迹2起点，需手动指定（可以从原始轨迹推断）
-    # 这里示例使用图中的任意两个节点，实际使用时需根据需求指定
-    nodes = list(graph["nodes"].keys())
-    if len(nodes) < 2:
-        print("图中节点不足，无法计算路径")
+    # 硬编码起终点（示例：轨迹1的第1个点到轨迹2的第2个点）
+    start_traj = 5    # 轨迹编号，从1开始
+    start_point = 1   # 点序号，从1开始
+    end_traj = 3     # 轨迹编号，从1开始
+    end_point = 69  # 点序号，从1开始
+
+    # 获取起终点节点ID
+    start_id = get_node_id_from_graph(graph, start_traj, start_point)
+    if start_id is None:
+        return
+    end_id = get_node_id_from_graph(graph, end_traj, end_point)
+    if end_id is None:
         return
 
-    start_id = nodes[0]  # 示例：轨迹1起点
-    end_id = nodes[len(nodes)//2]  # 示例：轨迹2起点
-    print(f"计算从 {start_id} 到 {end_id} 的最短路径")
+    print(f"\n计算从 轨迹 {start_traj} 的第 {start_point} 个点 ({start_id}) "
+          f"到 轨迹 {end_traj} 的第 {end_point} 个点 ({end_id}) 的最短路径")
 
+    # 计算最短路径
     path, distance = dijkstra(graph, start_id, end_id)
 
     if path:
         print(f"\n最短路径：")
         for node in path:
             coords = graph["nodes"][node]
-            print(f"  ({coords['x']:.2f}, {coords['y']:.2f})")
+            traj_indices = coords["traj_indices"]
+            print(f"  ({coords['x']:.2f}, {coords['y']:.2f}) - 属于轨迹 {[i+1 for i in traj_indices]}")
         print(f"总距离：{distance:.2f}")
     else:
         print("\n没有找到路径")
 
+    # 可视化
     visualize_graph(graph, path, start_id, end_id)
 
 if __name__ == "__main__":
